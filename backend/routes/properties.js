@@ -103,4 +103,66 @@ router.get("/", async (req, res) => {
   }
 });
 
+const MAX_ID_LENGTH = 50;
+
+function validateId(id, res) {
+  if (!id || id.length > MAX_ID_LENGTH || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    res.status(400).json({ error: "Invalid listing ID format" });
+    return false;
+  }
+  return true;
+}
+
+// Must be registered before /:id so Express doesn't swallow "openhouses" as an id
+router.get("/:id/openhouses", async (req, res) => {
+  const { id } = req.params;
+  if (!validateId(id, res)) return;
+
+  try {
+    const [[property]] = await pool.query(
+      "SELECT L_ListingID FROM rets_property WHERE L_ListingID = ?",
+      [id]
+    );
+    if (!property) {
+      return res.status(404).json({ error: `No property found with ID ${id}` });
+    }
+
+    const [openhouses] = await pool.query(
+      `SELECT L_ListingID, OpenHouseDate, OH_StartTime, OH_EndTime, all_data
+       FROM rets_openhouse
+       WHERE L_ListingID = ?
+       ORDER BY OpenHouseDate ASC, OH_StartTime ASC`,
+      [id]
+    );
+
+    res.json(openhouses);
+  } catch (err) {
+    res.status(500).json({ error: "Database error", message: err.message });
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!validateId(id, res)) return;
+
+  try {
+    const [[property]] = await pool.query(
+      `SELECT L_ListingID, L_Address, L_City, L_State, L_Zip,
+              L_SystemPrice, L_Keyword2, LM_Dec_3, LM_Int2_3,
+              L_Photos, LMD_MP_Latitude, LMD_MP_Longitude,
+              L_Remarks, YearBuilt
+       FROM rets_property WHERE L_ListingID = ?`,
+      [id]
+    );
+
+    if (!property) {
+      return res.status(404).json({ error: `No property found with ID ${id}` });
+    }
+
+    res.json(property);
+  } catch (err) {
+    res.status(500).json({ error: "Database error", message: err.message });
+  }
+});
+
 module.exports = router;

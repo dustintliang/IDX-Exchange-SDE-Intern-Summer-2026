@@ -2,22 +2,28 @@ import { useState, useEffect, useRef } from 'react';
 import { fetchProperties } from '../api/client';
 import PropertyCard from '../components/PropertyCard';
 import PropertyFilters from '../components/PropertyFilters';
+import Pagination from '../components/Pagination';
+
+const ITEMS_PER_PAGE = 20;
 
 export default function ListingsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Each new request increments this counter. The .then() callback checks
-  // that its id still matches before writing state — this drops stale responses
-  // and prevents old results from flashing in after a newer request lands first.
+  // Increment on every new request; stale .then() callbacks check their id
+  // matches the current value before writing state — prevents old results
+  // from flashing in after a faster newer request has already resolved.
   const requestId = useRef(0);
 
-  function loadProperties(filters = {}) {
+  function loadProperties(activeFilters = {}, page = 1) {
     const id = ++requestId.current;
+    const offset = (page - 1) * ITEMS_PER_PAGE;
     setLoading(true);
     setError(null);
-    fetchProperties({ ...filters, limit: 20 })
+    fetchProperties({ ...activeFilters, limit: ITEMS_PER_PAGE, offset })
       .then((result) => {
         if (id !== requestId.current) return;
         setData(result);
@@ -35,20 +41,42 @@ export default function ListingsPage() {
     loadProperties();
   }, []);
 
+  function handleSearch(newFilters) {
+    setFilters(newFilters);
+    setCurrentPage(1);
+    loadProperties(newFilters, 1);
+  }
+
+  function handleClear() {
+    setFilters({});
+    setCurrentPage(1);
+    loadProperties({}, 1);
+  }
+
+  function handlePageChange(page) {
+    setCurrentPage(page);
+    loadProperties(filters, page);
+    window.scrollTo(0, 0);
+  }
+
+  const totalPages = data ? Math.ceil(data.total / ITEMS_PER_PAGE) : 0;
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+  const showingFrom = data && data.results.length > 0 ? offset + 1 : 0;
+  const showingTo = data ? offset + data.results.length : 0;
+
   return (
     <div className="listings-page">
       <header className="listings-header">
         <h1>IDX Exchange</h1>
       </header>
 
-      <PropertyFilters
-        onSearch={(filters) => loadProperties(filters)}
-        onClear={() => loadProperties()}
-      />
+      <PropertyFilters onSearch={handleSearch} onClear={handleClear} />
 
       {data && !loading && (
         <p className="count">
-          Showing {data.results.length} of {Number(data.total).toLocaleString()} properties
+          {data.results.length === 0
+            ? 'No properties found'
+            : `Showing ${showingFrom.toLocaleString()}–${showingTo.toLocaleString()} of ${Number(data.total).toLocaleString()} properties`}
         </p>
       )}
 
@@ -80,6 +108,14 @@ export default function ListingsPage() {
             <PropertyCard key={p.L_ListingID} property={p} />
           ))}
         </div>
+      )}
+
+      {data && !loading && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       )}
     </div>
   );

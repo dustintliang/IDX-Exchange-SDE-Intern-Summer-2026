@@ -38,4 +38,32 @@ describe('PropertyFilters', () => {
     render(<PropertyFilters onSearch={onSearch} onClear={vi.fn()} />);
     expect(onSearch).not.toHaveBeenCalled();
   });
+
+  it('shows an error and blocks onSearch when minPrice is greater than maxPrice', () => {
+    const onSearch = vi.fn();
+    render(<PropertyFilters onSearch={onSearch} onClear={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('Min Price'), {
+      target: { name: 'minPrice', value: '900000' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Max Price'), {
+      target: { name: 'maxPrice', value: '500000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /search/i }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Min price cannot be greater than max price.');
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it('clears the price error message when Clear Filters is clicked', () => {
+    render(<PropertyFilters onSearch={vi.fn()} onClear={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('Min Price'), {
+      target: { name: 'minPrice', value: '900000' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Max Price'), {
+      target: { name: 'maxPrice', value: '100000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /search/i }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /clear/i }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

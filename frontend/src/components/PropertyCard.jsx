@@ -1,15 +1,9 @@
-function parsePhotos(raw) {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-  } catch {
-    return [];
-  }
-}
+import { Link } from 'react-router-dom';
+import PropertyImageCarousel from './PropertyImageCarousel';
 
 export default function PropertyCard({ property }) {
   const {
+    L_ListingID,
     L_Address,
     L_City,
     L_State,
@@ -21,26 +15,12 @@ export default function PropertyCard({ property }) {
     L_Photos,
   } = property;
 
-  const photos = parsePhotos(L_Photos);
-  const firstPhoto = photos[0] ?? null;
   const price = Number(L_SystemPrice);
 
   return (
-    <div className="property-card">
+    <Link to={`/property/${L_ListingID}`} className="property-card">
       <div className="card-photo">
-        {firstPhoto ? (
-          <img
-            src={firstPhoto}
-            alt={L_Address}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-        ) : null}
-        <div className="no-photo" style={{ display: firstPhoto ? 'none' : 'flex' }}>
-          No Photo
-        </div>
+        <PropertyImageCarousel photosRaw={L_Photos} />
       </div>
       <div className="card-body">
         <div className="card-price">
@@ -58,6 +38,6 @@ export default function PropertyCard({ property }) {
           <span>{LM_Int2_3 ? Number(LM_Int2_3).toLocaleString() + ' sqft' : '— sqft'}</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
